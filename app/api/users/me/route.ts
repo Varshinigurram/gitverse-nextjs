@@ -1,13 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { requireAuth } from '@/lib/middleware'
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { requireAuth } from "@/lib/middleware";
 
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs'
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
-    const user = requireAuth(request)
+    const user = requireAuth(request);
 
     const userDetails = await prisma.user.findUnique({
       where: { id: user.userId },
@@ -18,15 +18,39 @@ export async function GET(request: NextRequest) {
         avatarUrl: true,
         createdAt: true,
       },
-    })
+    });
 
     if (!userDetails) {
-      return NextResponse.json({ message: 'User not found' }, { status: 404 })
+      return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json(userDetails)
+    return NextResponse.json(userDetails);
   } catch (error: any) {
-    console.error('Error fetching user:', error)
-    return NextResponse.json({ message: 'Failed to fetch user' }, { status: 500 })
+    console.error("Error fetching user:", error);
+    return NextResponse.json(
+      { message: "Failed to fetch user" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = requireAuth(request);
+
+    await prisma.user.delete({
+      where: { id: user.userId },
+    });
+
+    return NextResponse.json({ message: "Account deleted" });
+  } catch (error: any) {
+    console.error("Error deleting account:", error);
+    if (error?.code === "P2025") {
+      return NextResponse.json({ message: "User not found" }, { status: 404 });
+    }
+    return NextResponse.json(
+      { message: "Failed to delete account" },
+      { status: 500 }
+    );
   }
 }
