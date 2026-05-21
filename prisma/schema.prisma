@@ -60,6 +60,7 @@ model GitHubAccount {
   @@map("github_accounts")
 }
 
+
 model GitHubRepo {
   id           Int      @id @default(autoincrement())
   userId       Int      @map("user_id")
@@ -73,8 +74,10 @@ model GitHubRepo {
   pullRequests PullRequest[]
 
   @@unique([userId, repoFullName])
+  @@index([repoFullName, enabled, installationId])
   @@index([installationId])
   @@index([enabled])
+  @@index([updatedAt])
   @@map("github_repos")
 }
 
