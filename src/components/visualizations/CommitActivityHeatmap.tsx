@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
-import { Card } from "@/components/ui";
+import { Card, EmptyState } from "@/components/ui";
+import { Calendar } from "lucide-react";
 
 interface CommitData {
   date: string;
@@ -368,8 +369,16 @@ export function CommitActivityHeatmap({
           Contribution activity over the last 52 weeks
         </p>
       </div>
-      <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
-        <svg
+      {!repository?.commits || repository.commits.length === 0 ? (
+        <EmptyState
+          icon={Calendar}
+          title="No commit activity"
+          description="We couldn't find any commit history recorded for this repository."
+        />
+      ) : (
+        <>
+          <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+            <svg
           ref={svgRef}
           width={`${Math.max(1200, svgRef.current?.parentElement?.clientWidth || 900)}`}
           height="250"
@@ -450,6 +459,8 @@ export function CommitActivityHeatmap({
             ))}
           </div>
         </div>
+      )}
+        </>
       )}
 
 <div

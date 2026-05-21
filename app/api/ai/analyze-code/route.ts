@@ -8,24 +8,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { code, language, analysisType, context } = body;
 
-    if (typeof code !== "string" || !code.trim()) {
+    if (!code || !language || !analysisType) {
       return NextResponse.json(
-        { error: "Code must be a non-empty string" },
-        { status: 400 }
-      );
-    }
-
-    if (typeof language !== "string" || !language.trim()) {
-      return NextResponse.json(
-        { error: "Language must be a non-empty string" },
-        { status: 400 }
-      );
-    }
-
-    const validAnalysisTypes = ["explain", "improve", "bugs", "document", "refactor"];
-    if (typeof analysisType !== "string" || !validAnalysisTypes.includes(analysisType)) {
-      return NextResponse.json(
-        { error: `Analysis type must be one of: ${validAnalysisTypes.join(", ")}` },
+        { error: "Code, language, and analysis type are required" },
         { status: 400 }
       );
     }
@@ -40,7 +25,7 @@ export async function POST(request: NextRequest) {
     const analysis = await getGeminiService().analyzeCode({
       code,
       language,
-      analysisType: analysisType as "explain" | "improve" | "bugs" | "document" | "refactor",
+      analysisType,
       context,
     });
 

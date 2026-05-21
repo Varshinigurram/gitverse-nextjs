@@ -30,30 +30,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { repositoryId, filePath } = body;
 
-    if (repositoryId == null || filePath == null) {
+    if (!repositoryId || !filePath) {
       return NextResponse.json(
         { error: "Repository ID and file path are required" },
         { status: 400 }
       );
     }
 
-    const parsedRepoId = Number(repositoryId);
-    if (!Number.isFinite(parsedRepoId)) {
-      return NextResponse.json(
-        { error: "Repository ID must be a valid number" },
-        { status: 400 }
-      );
-    }
-
-    if (typeof filePath !== "string" || !filePath.trim()) {
-      return NextResponse.json(
-        { error: "File path must be a non-empty string" },
-        { status: 400 }
-      );
-    }
-
     const repository = (await repositoryService.getRepository(
-      parsedRepoId,
+      repositoryId,
       user.userId
     )) as Repository;
 

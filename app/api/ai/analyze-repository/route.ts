@@ -9,31 +9,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { repositoryId, type } = body;
 
-    if (repositoryId == null || type == null) {
+    if (!repositoryId || !type) {
       return NextResponse.json(
         { error: "Repository ID and analysis type are required" },
         { status: 400 }
       );
     }
 
-    const parsedRepoId = Number(repositoryId);
-    if (!Number.isFinite(parsedRepoId)) {
-      return NextResponse.json(
-        { error: "Repository ID must be a valid number" },
-        { status: 400 }
-      );
-    }
-
-    const validTypes = ["overview", "code-quality", "security", "architecture", "suggestions"];
-    if (typeof type !== "string" || !validTypes.includes(type)) {
-      return NextResponse.json(
-        { error: `Analysis type must be one of: ${validTypes.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
     const repository = await repositoryService.getRepository(
-      parsedRepoId,
+      repositoryId,
       user.userId
     );
 
@@ -61,8 +45,8 @@ export async function POST(request: NextRequest) {
     };
 
     const analysis = await getGeminiService().analyzeRepository({
-      repositoryId: parsedRepoId,
-      type: type as "overview" | "code-quality" | "security" | "architecture" | "suggestions",
+      repositoryId,
+      type,
       context,
     });
 

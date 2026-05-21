@@ -8,13 +8,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { added, modified, deleted, diff } = body;
 
-    const hasValidInput =
-      (Array.isArray(added) && added.length > 0) ||
-      (Array.isArray(modified) && modified.length > 0) ||
-      (Array.isArray(deleted) && deleted.length > 0) ||
-      (typeof diff === "string" && diff.trim().length > 0);
-
-    if (!hasValidInput) {
+    if (
+      (!added || added.length === 0) &&
+      (!modified || modified.length === 0) &&
+      (!deleted || deleted.length === 0) &&
+      !diff
+    ) {
       return NextResponse.json(
         { error: "At least one of added, modified, deleted, or diff is required" },
         { status: 400 }

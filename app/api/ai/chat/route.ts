@@ -15,53 +15,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ response });
     }
 
-    if (prompt !== undefined && typeof prompt !== "string") {
-      return NextResponse.json(
-        { error: "Prompt must be a string" },
-        { status: 400 }
-      );
-    }
-
-    if (repositoryId == null || question == null) {
+    if (!repositoryId || !question) {
       return NextResponse.json(
         { error: "Repository ID and question are required" },
         { status: 400 }
       );
     }
 
-    const parsedRepoId = Number(repositoryId);
-    if (!Number.isFinite(parsedRepoId)) {
-      return NextResponse.json(
-        { error: "Repository ID must be a valid number" },
-        { status: 400 }
-      );
-    }
-
-    if (typeof question !== "string" || !question.trim()) {
-      return NextResponse.json(
-        { error: "Question must be a non-empty string" },
-        { status: 400 }
-      );
-    }
-
-    if (
-      conversationHistory !== undefined &&
-      (!Array.isArray(conversationHistory) ||
-        conversationHistory.some(
-          (m: any) =>
-            typeof m !== "object" ||
-            !["user", "assistant"].includes(m.role) ||
-            typeof m.content !== "string"
-        ))
-    ) {
-      return NextResponse.json(
-        { error: "conversationHistory must be an array of {role, content} objects" },
-        { status: 400 }
-      );
-    }
-
     const repository = await repositoryService.getRepository(
-      parsedRepoId,
+      repositoryId,
       user.userId
     );
 
@@ -86,7 +48,7 @@ export async function POST(request: NextRequest) {
     };
 
     const response = await getGeminiService().chatAboutRepository({
-      repositoryId: parsedRepoId,
+      repositoryId,
       question,
       conversationHistory,
       context,
