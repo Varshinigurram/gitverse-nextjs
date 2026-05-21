@@ -3,6 +3,7 @@ import { isHttpError, requireAuth } from "@/lib/middleware";
 import prisma from "@/lib/prisma";
 import { toJsonSafe } from "@/lib/utils/jsonSafe";
 import { GitHubRateLimitError } from "@/lib/services/githubService";
+import { isValidRepositoryIdentifier } from "@/lib/utils/validators";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,6 +18,13 @@ export async function POST(request: NextRequest) {
     if (repoFullNames.length === 0) {
       return NextResponse.json(
         { error: "repoFullNames must be a non-empty array" },
+        { status: 400 },
+      );
+    }
+
+    if (!repoFullNames.every(isValidRepositoryIdentifier)) {
+      return NextResponse.json(
+        { error: "Invalid repository identifier format in selection" },
         { status: 400 },
       );
     }
