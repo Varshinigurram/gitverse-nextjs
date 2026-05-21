@@ -20,6 +20,7 @@ import {
   BarChart3,
   ArrowLeft,
   Trash2,
+  Activity,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -225,10 +226,19 @@ export default function RepositoryAnalysis() {
           <div className="text-center py-12">
             <p className="text-muted-foreground">Loading repository...</p>
           </div>
-        ) : !repository ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Repository not found</p>
-          </div>
+        ) : !job ? (
+  <div className="text-center py-12 flex flex-col items-center gap-4">
+    <Activity className="h-12 w-12 text-muted-foreground/50" />
+    <div>
+      <h3 className="font-semibold text-lg">No analysis jobs found</h3>
+      <p className="text-sm text-muted-foreground mt-1">
+        Run your first analysis to get started
+      </p>
+    </div>
+    <button onClick={() => router.push('/dashboard')}>
+      Go to Dashboard
+    </button>
+  </div>
         ) : (
           <>
             {/* Header with back button */}

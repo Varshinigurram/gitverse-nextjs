@@ -75,6 +75,7 @@ model GitHubRepo {
   @@unique([userId, repoFullName])
   @@index([installationId])
   @@index([enabled])
+  @@index([repoFullName, enabled])
   @@map("github_repos")
 }
 
@@ -132,6 +133,7 @@ model Account {
 
   @@unique([provider, providerAccountId])
   @@index([userId])
+  @@index([userId, provider])
   @@map("accounts")
 }
 
@@ -182,6 +184,7 @@ model Repository {
   analysisJobs   AnalysisJob[]
 
   @@index([userId])
+  @@index([userId, url])
   @@map("repositories")
 }
 
@@ -220,6 +223,8 @@ model AnalysisJob {
   @@index([lockExpiresAt])
   @@index([repositoryId])
   @@index([userId])
+  @@index([repositoryId, userId, createdAt])
+  @@index([userId, status])
   @@map("analysis_jobs")
 }
 
@@ -236,6 +241,7 @@ model Branch {
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
   @@unique([repositoryId, name])
+  @@index([repositoryId])
   @@map("branches")
 }
 
@@ -318,6 +324,7 @@ model Contributor {
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
   @@unique([repositoryId, email])
+  @@index([repositoryId])
   @@map("contributors")
 }
 
@@ -333,5 +340,6 @@ model Language {
   createdAt    DateTime   @default(now()) @map("created_at")
 
   @@unique([repositoryId, name])
+  @@index([repositoryId])
   @@map("languages")
 }

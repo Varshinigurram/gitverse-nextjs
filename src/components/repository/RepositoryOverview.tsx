@@ -19,7 +19,6 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  Skeleton,
 } from "@/components/ui";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -141,9 +140,6 @@ export const RepositoryOverview = ({
   }));
 
   const hasUsableReadme = Boolean(readmeText && readmeText !== "doesnt exist");
-  const isAnalyzing =
-    repositoryData?.status === "pending" ||
-    repositoryData?.status === "analyzing";
 
   const githubRawBase = (() => {
     const url = String(repositoryData?.url || "");
@@ -431,22 +427,7 @@ export const RepositoryOverview = ({
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 space-y-3">
-            {isAnalyzing && !hasUsableReadme ? (
-              <div className="bg-background/50 border border-border/50 rounded-lg p-4 space-y-4" aria-busy="true" aria-label="Loading README">
-                <Skeleton className="h-8 w-1/3 sm:w-1/4" />
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-11/12" />
-                  <Skeleton className="h-4 w-5/6" />
-                </div>
-                <div className="pt-4 space-y-2">
-                  <Skeleton className="h-6 w-1/4 sm:w-1/5" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-4/5" />
-                  <Skeleton className="h-32 w-full mt-4" />
-                </div>
-              </div>
-            ) : hasUsableReadme ? (
+            {hasUsableReadme ? (
               <div className="bg-background/50 border border-border/50 rounded-lg p-3 max-h-96 overflow-auto text-sm leading-relaxed">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}

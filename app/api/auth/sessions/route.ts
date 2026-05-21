@@ -37,8 +37,8 @@ export async function GET(request: NextRequest) {
 
     let nextCursor: string | undefined = undefined;
     if (sessions.length > limit) {
-      const nextItem = sessions.pop(); // Remove the extra item
-      nextCursor = nextItem!.id;
+      sessions.pop(); // Remove the extra item
+      nextCursor = sessions[sessions.length - 1]?.id;
     }
 
     return NextResponse.json({

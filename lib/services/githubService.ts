@@ -9,15 +9,47 @@ export class GitHubRateLimitError extends Error {
   }
 }
 
+function sanitizeGitHubHeaders(headers: any): any {
+  if (headers == null) {
+    return headers;
+  }
+
+  if (Array.isArray(headers)) {
+    return headers.map((value) => sanitizeGitHubHeaders(value));
+  }
+
+  if (typeof headers !== "object") {
+    return headers;
+  }
+
+  const source =
+    typeof (headers as any).toJSON === "function" ? (headers as any).toJSON() : headers;
+
+  if (source == null || typeof source !== "object") {
+    return source;
+  }
+
+  const sanitized: Record<string, any> = Array.isArray(source) ? [] : {};
+
+  for (const [key, value] of Object.entries(source)) {
+    if (key.toLowerCase() === "authorization") {
+      sanitized[key] = "[REDACTED]";
+    } else if (value != null && typeof value === "object") {
+      sanitized[key] = sanitizeGitHubHeaders(value);
+    } else {
+      sanitized[key] = value;
+    }
+  }
+
+  return sanitized;
+}
+
 export function sanitizeGitHubError(error: any) {
   if (isAxiosError(error) && error.config) {
-    const safeConfig = { ...error.config };
-    if (safeConfig.headers) {
-      safeConfig.headers = { ...safeConfig.headers };
-      if (safeConfig.headers.Authorization) {
-        safeConfig.headers.Authorization = "[REDACTED]";
-      }
-    }
+    const safeConfig = {
+      ...error.config,
+      headers: sanitizeGitHubHeaders(error.config.headers),
+    };
     error.config = safeConfig as any;
   }
   return error;

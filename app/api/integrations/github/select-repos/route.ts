@@ -93,7 +93,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: "Failed to save selected repos",
-        details: error?.message || "Unknown error",
       },
       { status: 500 },
     );

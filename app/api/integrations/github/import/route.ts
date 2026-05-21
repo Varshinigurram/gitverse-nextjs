@@ -16,6 +16,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!token) {
+      return NextResponse.json(
+        { error: "GitHub token is required" },
+        { status: 400 }
+      );
+    }
+
     const parsed = GitHubService.parseGitHubUrl(url);
     if (!parsed) {
       return NextResponse.json(
@@ -46,7 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: "Failed to import from GitHub", details: error.message },
+      { error: "Failed to import from GitHub" },
       { status: 500 }
     );
   }
