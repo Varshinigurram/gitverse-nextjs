@@ -23,3 +23,4 @@ export {
   DropdownMenuSubTrigger,
   DropdownMenuRadioGroup,
 } from './dropdown-menu'
+export { Skeleton } from './Skeleton'
