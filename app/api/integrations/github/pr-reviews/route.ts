@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isHttpError, requireAuth } from "@/lib/api-auth";
 import prisma from "@/lib/prisma";
 import { toJsonSafe } from "@/lib/utils/jsonSafe";
+import { isValidRepositoryIdentifier } from "@/lib/utils/validators";
 
 function clampInt(
   value: string | null,
@@ -20,6 +21,14 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const repoFullName = (url.searchParams.get("repoFullName") || "").trim();
+    
+    if (repoFullName && !isValidRepositoryIdentifier(repoFullName)) {
+      return NextResponse.json(
+        { error: "Invalid repository identifier format" },
+        { status: 400 }
+      );
+    }
+
     const includeDisabled = (url.searchParams.get("includeDisabled") || "")
       .trim()
       .toLowerCase();
