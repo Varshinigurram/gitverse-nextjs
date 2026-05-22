@@ -143,6 +143,8 @@ export interface AnalysisWorkerSummary {
   jobsFailed: number;
   executionDurationMs: number;
   success: boolean;
+  budgetExhausted?: boolean;
+  earlyStopReason?: string;
 }
 
 export async function startAnalysisWorkerLoop(opts?: {
@@ -167,6 +169,11 @@ export async function startAnalysisWorkerLoop(opts?: {
   let jobsProcessed = 0;
   let jobsSkipped = 0;
   let jobsFailed = 0;
+  
+  const timeBudgetMs = opts?.timeBudgetMs;
+  const budgetGraceMs = opts?.budgetGraceMs ?? 10_000; // 10s default buffer
+  let budgetExhausted = false;
+  let earlyStopReason: string | undefined;
 
   const shutdown = async (signal: string) => {
     if (stopping) return;
@@ -188,6 +195,17 @@ export async function startAnalysisWorkerLoop(opts?: {
   let jobsSkipped = 0;
 
   while (!stopping) {
+    if (timeBudgetMs) {
+      const elapsed = Date.now() - startTimeMs;
+      const remaining = timeBudgetMs - elapsed;
+      if (remaining <= budgetGraceMs) {
+        console.log(`Time budget nearly exhausted (${remaining}ms remaining). Stopping gracefully.`);
+        budgetExhausted = true;
+        earlyStopReason = "time_budget_exhausted";
+        break;
+      }
+    }
+
     try {
       if (opts?.timeBudgetMs) {
         const elapsed = Date.now() - startTime;
@@ -233,6 +251,8 @@ export async function startAnalysisWorkerLoop(opts?: {
           jobsFailed,
           executionDurationMs: Date.now() - startTimeMs,
           success: false,
+          budgetExhausted,
+          earlyStopReason,
         };
       }
       await sleep(pollIntervalMs);
@@ -246,6 +266,8 @@ export async function startAnalysisWorkerLoop(opts?: {
     jobsFailed,
     executionDurationMs: Date.now() - startTimeMs,
     success: true,
+    budgetExhausted,
+    earlyStopReason,
   };
 }
 
