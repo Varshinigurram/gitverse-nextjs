@@ -98,8 +98,18 @@ export interface GitHubCommit {
       email: string;
       date: string;
     };
+    committer: {
+      name: string;
+      email: string;
+      date: string;
+    };
     message: string;
+    tree: {
+      sha: string;
+      url: string;
+    };
   };
+  parents: Array<{ sha: string; url: string }>;
   stats?: {
     total: number;
     additions: number;
@@ -579,6 +589,113 @@ export class GitHubService {
     }
 
     return all;
+  }
+
+  /**
+   * Paginated commits — fetches all pages up to maxCommits.
+   */
+  async getCommitsAll(
+    owner: string,
+    repo: string,
+    params?: {
+      sha?: string;
+      path?: string;
+      maxCommits?: number;
+    },
+  ): Promise<GitHubCommit[]> {
+    const all: GitHubCommit[] = [];
+    const perPage = 100;
+    const maxCommits = params?.maxCommits ?? 1000;
+
+    for (let page = 1; page <= Math.ceil(maxCommits / perPage); page++) {
+      const batch = await this.getCommits(owner, repo, {
+        sha: params?.sha,
+        path: params?.path,
+        per_page: perPage,
+        page,
+      });
+      all.push(...batch);
+      if (batch.length < perPage) break;
+      if (all.length >= maxCommits) break;
+    }
+
+    return all.slice(0, maxCommits);
+  }
+
+  /**
+   * Paginated contributors — fetches all pages up to a max.
+   */
+  async getContributorsAll(
+    owner: string,
+    repo: string,
+  ): Promise<Array<{ login: string; contributions: number; avatar_url: string }>> {
+    const all: Array<{ login: string; contributions: number; avatar_url: string }> = [];
+    const perPage = 100;
+    const maxPages = 5;
+
+    for (let page = 1; page <= maxPages; page++) {
+      try {
+        const response = await this.client.get(`/repos/${owner}/${repo}/contributors`, {
+          params: { per_page: perPage, page },
+        });
+        const items = response.data;
+        if (!Array.isArray(items) || items.length === 0) break;
+        all.push(...items);
+        if (items.length < perPage) break;
+      } catch (error) {
+        if (isAxiosError(error) && error.response?.status === 404) break;
+        throw sanitizeGitHubError(error);
+      }
+    }
+
+    return all;
+  }
+
+  /**
+   * Fetch the full file tree for a repository via the Git Trees API.
+   * Returns only blob (file) entries with their paths and sizes.
+   */
+  async getFileTree(
+    owner: string,
+    repo: string,
+  ): Promise<Array<{ path: string; size: number }>> {
+    const repoInfo = await this.getRepository(owner, repo);
+    if (!repoInfo) return [];
+
+    try {
+      const branchResponse = await this.client.get(
+        `/repos/${owner}/${repo}/branches/${repoInfo.default_branch}`,
+      );
+      const commitSha = branchResponse.data?.commit?.sha;
+      if (!commitSha) return [];
+
+      const commitResponse = await this.client.get(
+        `/repos/${owner}/${repo}/commits/${commitSha}`,
+      );
+      const treeSha = commitResponse.data?.commit?.tree?.sha;
+      if (!treeSha) return [];
+
+      const treeResponse = await this.client.get(
+        `/repos/${owner}/${repo}/git/trees/${treeSha}`,
+        { params: { recursive: 1 } },
+      );
+
+      const entries = treeResponse.data?.tree;
+      if (!Array.isArray(entries)) return [];
+
+      if (treeResponse.data?.truncated) {
+        console.warn(`File tree truncated for ${owner}/${repo} (>100k entries)`);
+      }
+
+      return entries
+        .filter((e: any) => e.type === "blob")
+        .map((e: any) => ({ path: e.path, size: e.size ?? 0 }));
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 409) {
+        return [];
+      }
+      throw sanitizeGitHubError(error);
+    }
   }
 
   /**
