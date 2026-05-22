@@ -17,9 +17,10 @@ export async function GET(request: Request) {
   console.log('Starting analysis cron run...');
 
   try {
-    // Run the worker loop in "once" mode so it returns after one pass through the queue
+    // Run the worker loop with a time budget slightly less than Vercel's maxDuration
     const metrics = await startAnalysisWorkerLoop({ 
-      once: true
+      timeBudgetMs: 280_000, // 280 seconds (leaves 20s buffer)
+      stopOnEmptyQueue: true
     });
     
     console.log(`Finished analysis cron run. Summary:`, metrics);
