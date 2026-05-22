@@ -35,6 +35,13 @@ export async function POST(request: NextRequest) {
     const github = new GitHubService(token);
     const repoData = await github.getRepository(parsed.owner, parsed.repo);
 
+    if (!repoData) {
+      return NextResponse.json(
+        { error: "Repository not found. It may have been renamed, deleted, or is inaccessible with the provided token." },
+        { status: 404 }
+      );
+    }
+
     const repository = await repositoryService.createRepository({
       name: repoData.name,
       url: repoData.clone_url,

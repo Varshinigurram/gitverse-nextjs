@@ -299,14 +299,25 @@ cp .env.example .env.local
 | `GOOGLE_CLIENT_ID` | Google OAuth 2.0 client ID | [Google Cloud Console](https://console.cloud.google.com) → **APIs & Services → Credentials → Create Credentials → OAuth client ID** (Web application). |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth 2.0 client secret | Obtained alongside `GOOGLE_CLIENT_ID` in the same step above. |
 
-### GitHub App Variables (for PR reviews)
+### GitHub App Configuration (for PR reviews)
 
-| Variable | Description | How to obtain |
+GitVerse uses a GitHub App to analyze repositories and post PR reviews. 
+
+**Required Permissions:**
+When creating your GitHub App, ensure you grant the following permissions:
+- **Repository Permissions**:
+  - `Contents`: Read-only (Required to fetch repository code for analysis)
+  - `Metadata`: Read-only (Mandatory for all GitHub Apps)
+  - `Pull requests`: Read & Write (Required to read PR changes and post review comments)
+  - `Issues`: Read & Write (Required if tracking or commenting on issues)
+- **Subscribe to events**: `Pull request`
+
+| Variable | Description & Usage | How to obtain |
 | :--- | :--- | :--- |
-| `GITHUB_APP_ID` | Numeric ID of your GitHub App | [GitHub Developer Settings](https://github.com/settings/apps) → create or open your App → copy **App ID**. |
-| `GITHUB_APP_PRIVATE_KEY` | RSA private key for the GitHub App | In your GitHub App settings → **Generate a private key** → paste contents with literal `\n` line breaks. |
-| `GITHUB_APP_SLUG` | URL slug of your GitHub App | The part after `github.com/apps/` in the App's public URL. |
-| `GITHUB_WEBHOOK_SECRET` | Secret to verify webhook payloads | Set any strong random string here and enter the same value in your GitHub App's webhook configuration. |
+| `GITHUB_APP_ID` | Numeric ID of your GitHub App. Used to authenticate API requests as the App. | [GitHub Developer Settings](https://github.com/settings/apps) → create or open your App → copy **App ID**. |
+| `GITHUB_APP_PRIVATE_KEY` | RSA private key. Used to sign JWTs for GitHub API authentication. | In your GitHub App settings → **Generate a private key** → paste contents with literal `\n` line breaks. |
+| `GITHUB_APP_SLUG` | URL slug of your GitHub App. Used to generate installation URLs. | The part after `github.com/apps/` in the App's public URL. |
+| `GITHUB_WEBHOOK_SECRET` | Secret string. Used to verify that incoming webhook payloads genuinely came from GitHub. | Set any strong random string here and enter the same value in your GitHub App's webhook configuration. |
 
 ### Optional Variables
 
@@ -413,6 +424,17 @@ npm run dev -- -p 3001
 1. Ensure all required environment variables are set in the Vercel dashboard — missing vars can cause build-time type errors.
 2. Run `npm run build` locally first to catch errors before pushing.
 3. Check that your Node.js version in Vercel matches the one used locally (see `engines` in `package.json`).
+
+### GitHub App Integration Issues
+
+**Symptoms:** PR reviews aren't posting, repo analysis fails, or webhook errors.
+
+**Fix:**
+- **Missing Credentials:** Ensure `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, and other related variables are correctly populated in your `.env.local` or Vercel environment settings. Without these, PR reviews and repository analysis will fail. Build or deployment failures caused by missing secrets are usually flagged during the `npm run build` step.
+- **Permission Denied:** Verify your GitHub App has the exact permissions listed in the [GitHub App Configuration](#github-app-configuration-for-pr-reviews) section (especially Read/Write on Pull Requests and Read on Contents). If you updated permissions on an existing App, you must accept the new permissions on your App installations.
+- **Invalid Callback URL / Webhook:** Ensure the webhook URL in the GitHub App settings exactly matches your deployed domain's endpoint (e.g., `https://<your-domain>/api/integrations/github/webhook`).
+- **Vercel Environment Setup:** In Vercel, format the `GITHUB_APP_PRIVATE_KEY` correctly. Sometimes newlines get mangled during copy-pasting. Enclosing the key in double quotes in the Vercel dashboard or ensuring literal `\n` characters are used can prevent parsing errors.
+- **Error Handling (Local Dev):** If running locally, check your terminal for missing environment variable warnings at startup. If analysis fails silently, review the terminal logs for explicit GitHub API permission or authentication errors.
 
 ## 🤝 Contributing
 

@@ -10,9 +10,9 @@ export async function POST(
     const user = await requireAuth(request);
     const id = Number(params.id);
 
-    if (!Number.isFinite(id)) {
+    if (!Number.isInteger(id) || id <= 0) {
       return NextResponse.json(
-        { error: "Invalid repository ID" },
+        { error: "Invalid repository ID. Must be a positive integer." },
         { status: 400 },
       );
     }

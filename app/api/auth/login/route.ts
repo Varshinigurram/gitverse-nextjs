@@ -35,6 +35,14 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: "Please provide a valid email address" },
+        { status: 400 }
+      );
+    }
 
     // Find user
     const user = await prisma.user.findUnique({

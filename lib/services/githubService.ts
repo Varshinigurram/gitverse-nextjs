@@ -196,7 +196,7 @@ export class GitHubService {
           }
         }
 
-        const retryableCodes = [502, 503, 504];
+        const retryStatusCodes = [409, 502, 503, 504];
         if (
           (status && retryableCodes.includes(status)) ||
           error.code === "ECONNABORTED" ||
@@ -207,6 +207,7 @@ export class GitHubService {
           if (config.retryCount < 3) {
             config.retryCount += 1;
             const backoff = Math.pow(2, config.retryCount) * 1000 + Math.random() * 1000;
+            console.log(`Retrying GitHub API request ${config.url} (attempt ${config.retryCount}) due to ${status || error.code}...`);
             await new Promise((resolve) => setTimeout(resolve, backoff));
             return this.client(config);
           }
@@ -232,9 +233,25 @@ export class GitHubService {
   /**
    * Get repository information
    */
-  async getRepository(owner: string, repo: string): Promise<GitHubRepository> {
-    const response = await this.client.get(`/repos/${owner}/${repo}`);
-    return response.data;
+  async getRepository(owner: string, repo: string): Promise<GitHubRepository | null> {
+    try {
+      const response = await this.client.get(`/repos/${owner}/${repo}`);
+      const data = response.data as GitHubRepository;
+      
+      // Detect renamed repositories safely
+      const expectedFullName = `${owner}/${repo}`.toLowerCase();
+      if (data.full_name && data.full_name.toLowerCase() !== expectedFullName) {
+        console.warn(`GitHub repository renamed: requested ${expectedFullName}, but received ${data.full_name}`);
+      }
+      
+      return data;
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 404) {
+        console.warn(`GitHub repository not found (404): ${owner}/${repo}. It may have been deleted or access was lost.`);
+        return null;
+      }
+      throw sanitizeGitHubError(error);
+    }
   }
 
   /**
@@ -292,8 +309,15 @@ export class GitHubService {
    * Get repository branches
    */
   async getBranches(owner: string, repo: string): Promise<GitHubBranch[]> {
-    const response = await this.client.get(`/repos/${owner}/${repo}/branches`);
-    return response.data;
+    try {
+      const response = await this.client.get(`/repos/${owner}/${repo}/branches`);
+      return response.data;
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 404) {
+        return [];
+      }
+      throw sanitizeGitHubError(error);
+    }
   }
 
   /**
@@ -309,16 +333,22 @@ export class GitHubService {
       page?: number;
     },
   ): Promise<GitHubCommit[]> {
-    const response = await this.client.get(`/repos/${owner}/${repo}/commits`, {
-      params: {
-        sha: params?.sha,
-        path: params?.path,
-        per_page: params?.per_page || 100,
-        page: params?.page || 1,
-      },
-    });
-
-    return response.data;
+    try {
+      const response = await this.client.get(`/repos/${owner}/${repo}/commits`, {
+        params: {
+          sha: params?.sha,
+          path: params?.path,
+          per_page: params?.per_page || 100,
+          page: params?.page || 1,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (isAxiosError(error) && (error.response?.status === 404 || error.response?.status === 409)) {
+        return []; // 409 Conflict means repository is empty
+      }
+      throw sanitizeGitHubError(error);
+    }
   }
 
   /**
@@ -328,11 +358,18 @@ export class GitHubService {
     owner: string,
     repo: string,
     sha: string,
-  ): Promise<GitHubCommit> {
-    const response = await this.client.get(
-      `/repos/${owner}/${repo}/commits/${sha}`,
-    );
-    return response.data;
+  ): Promise<GitHubCommit | null> {
+    try {
+      const response = await this.client.get(
+        `/repos/${owner}/${repo}/commits/${sha}`,
+      );
+      return response.data;
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 404) {
+        return null;
+      }
+      throw sanitizeGitHubError(error);
+    }
   }
 
   /**
@@ -342,11 +379,18 @@ export class GitHubService {
     owner: string,
     repo: string,
     pullNumber: number,
-  ): Promise<GitHubPullRequest> {
-    const response = await this.client.get(
-      `/repos/${owner}/${repo}/pulls/${pullNumber}`,
-    );
-    return response.data;
+  ): Promise<GitHubPullRequest | null> {
+    try {
+      const response = await this.client.get(
+        `/repos/${owner}/${repo}/pulls/${pullNumber}`,
+      );
+      return response.data;
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 404) {
+        return null;
+      }
+      throw sanitizeGitHubError(error);
+    }
   }
 
   /**
@@ -362,21 +406,28 @@ export class GitHubService {
     const maxPages = Math.min(Math.max(params?.max_pages ?? 10, 1), 50);
 
     const all: GitHubPullRequestFile[] = [];
-    for (let page = 1; page <= maxPages; page++) {
-      const response = await this.client.get(
-        `/repos/${owner}/${repo}/pulls/${pullNumber}/files`,
-        {
-          params: {
-            per_page: perPage,
-            page,
+    try {
+      for (let page = 1; page <= maxPages; page++) {
+        const response = await this.client.get(
+          `/repos/${owner}/${repo}/pulls/${pullNumber}/files`,
+          {
+            params: {
+              per_page: perPage,
+              page,
+            },
           },
-        },
-      );
+        );
 
-      const items: GitHubPullRequestFile[] = response.data;
-      if (!Array.isArray(items) || items.length === 0) break;
-      all.push(...items);
-      if (items.length < perPage) break;
+        const items: GitHubPullRequestFile[] = response.data;
+        if (!Array.isArray(items) || items.length === 0) break;
+        all.push(...items);
+        if (items.length < perPage) break;
+      }
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 404) {
+        return all; // Return what we have (likely empty) if 404 occurs
+      }
+      throw sanitizeGitHubError(error);
     }
 
     return all;
@@ -444,8 +495,15 @@ export class GitHubService {
     owner: string,
     repo: string,
   ): Promise<Record<string, number>> {
-    const response = await this.client.get(`/repos/${owner}/${repo}/languages`);
-    return response.data;
+    try {
+      const response = await this.client.get(`/repos/${owner}/${repo}/languages`);
+      return response.data;
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 404) {
+        return {};
+      }
+      throw sanitizeGitHubError(error);
+    }
   }
 
   /**
@@ -461,10 +519,17 @@ export class GitHubService {
       avatar_url: string;
     }>
   > {
-    const response = await this.client.get(
-      `/repos/${owner}/${repo}/contributors`,
-    );
-    return response.data;
+    try {
+      const response = await this.client.get(
+        `/repos/${owner}/${repo}/contributors`,
+      );
+      return response.data;
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 404) {
+        return [];
+      }
+      throw sanitizeGitHubError(error);
+    }
   }
 
   /**

@@ -6,7 +6,24 @@ import { analysisJobService } from "@/lib/services/analysisJobService";
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth(request);
-    const body = await request.json();
+
+    let body;
+    try {
+      body = await request.json();
+    } catch (e) {
+      return NextResponse.json(
+        { error: "Malformed JSON body" },
+        { status: 400 }
+      );
+    }
+
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json(
+        { error: "Request body must be a JSON object" },
+        { status: 400 }
+      );
+    }
+
     const { name, url, description } = body;
 
     console.log("Create repository request:", {
@@ -15,26 +32,100 @@ export async function POST(request: NextRequest) {
       userId: user.userId,
     });
 
-    if (!name || !url) {
+    if (name === undefined || name === null) {
       return NextResponse.json(
-        { error: "Name and URL are required" },
+        { error: "Repository name is required" },
         { status: 400 }
       );
     }
 
-    // Validate URL format
-    const urlPattern = /^https?:\/\/.+/;
-    if (!urlPattern.test(url)) {
+    if (typeof name !== "string") {
       return NextResponse.json(
-        { error: "Invalid repository URL" },
+        { error: "Repository name must be a non-empty string" },
         { status: 400 }
       );
+    }
+
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      return NextResponse.json(
+        { error: "Repository name must be a non-empty string" },
+        { status: 400 }
+      );
+    }
+
+    if (trimmedName.length > 100) {
+      return NextResponse.json(
+        { error: "Repository name must be 100 characters or less" },
+        { status: 400 }
+      );
+    }
+
+    if (url === undefined || url === null) {
+      return NextResponse.json(
+        { error: "Repository URL is required" },
+        { status: 400 }
+      );
+    }
+
+    if (typeof url !== "string") {
+      return NextResponse.json(
+        { error: "Repository URL must be a non-empty string" },
+        { status: 400 }
+      );
+    }
+
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) {
+      return NextResponse.json(
+        { error: "Repository URL must be a non-empty string" },
+        { status: 400 }
+      );
+    }
+
+    if (trimmedUrl.length > 2000) {
+      return NextResponse.json(
+        { error: "Repository URL must be 2000 characters or less" },
+        { status: 400 }
+      );
+    }
+
+    try {
+      const parsedUrl = new URL(trimmedUrl);
+      if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+        return NextResponse.json(
+          { error: "Repository URL must use HTTP or HTTPS protocol" },
+          { status: 400 }
+        );
+      }
+    } catch (e) {
+      return NextResponse.json(
+        { error: "Invalid repository URL format" },
+        { status: 400 }
+      );
+    }
+
+    let trimmedDescription: string | undefined = undefined;
+    if (description !== undefined && description !== null) {
+      if (typeof description !== "string") {
+        return NextResponse.json(
+          { error: "Repository description must be a string" },
+          { status: 400 }
+        );
+      }
+      trimmedDescription = description.trim();
+      if (trimmedDescription.length > 1000) {
+        return NextResponse.json(
+          { error: "Repository description must be 1000 characters or less" },
+          { status: 400 }
+        );
+      }
     }
 
     const repository = await repositoryService.createRepository({
-      name,
-      url,
-      description,
+      name: trimmedName,
+      url: trimmedUrl,
+      description: trimmedDescription || undefined,
       userId: user.userId,
     });
 
@@ -51,7 +142,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: any) {
     console.error("Create repository error:", error);
-    console.error("Error stack:", error.stack);
     if (isHttpError(error)) {
       return NextResponse.json(
         { error: error.message },

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/middleware";
+import { isHttpError, requireAuth } from "@/lib/middleware";
 import { repositoryService } from "@/lib/services/repositoryService";
 
 export async function GET(
@@ -8,11 +8,11 @@ export async function GET(
 ) {
   try {
     const user = await requireAuth(request);
-    const id = parseInt(params.id);
+    const id = Number(params.id);
 
-    if (isNaN(id)) {
+    if (!Number.isInteger(id) || id <= 0) {
       return NextResponse.json(
-        { error: "Invalid repository ID" },
+        { error: "Invalid repository ID. Must be a positive integer." },
         { status: 400 }
       );
     }
@@ -22,6 +22,15 @@ export async function GET(
     return NextResponse.json({ stats });
   } catch (error: any) {
     console.error("Get repository stats error:", error);
+    if (isHttpError(error)) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status }
+      );
+    }
+    if (error?.message === "Repository not found") {
+      return NextResponse.json({ error: error.message }, { status: 404 });
+    }
     return NextResponse.json(
       { error: "Failed to get repository statistics" },
       { status: 500 }
