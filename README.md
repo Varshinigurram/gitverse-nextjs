@@ -211,7 +211,7 @@ const loadMore = async () => {
 
 ### Vercel (Recommended)
 
-####  Environment Variables Checklist
+#### Environment Variables Checklist
 
 Before deploying, add these in **Vercel Dashboard → Project → Settings → 
 Environment Variables:**
@@ -219,12 +219,12 @@ Environment Variables:**
 | Variable | Required | Description | Example |
 |---|---|---|---|
 | `DATABASE_URL` |  Yes | PostgreSQL connection string (Neon recommended) | `postgresql://user:pass@host/db` |
-| `JWT_SECRET` | Optional | Secret key for JWT signing | `openssl rand -base64 32` |
+| `JWT_SECRET` | No (if `NEXTAUTH_SECRET` is set) | Secret key for JWT signing (fallback for `NEXTAUTH_SECRET`) | `openssl rand -base64 32` |
 | `GEMINI_API_KEY` |  Yes | Google Gemini API key | Get from [Google AI Studio](https://aistudio.google.com) |
 | `NEXTAUTH_URL` |  Yes | Your deployed Vercel URL | `https://your-app.vercel.app` |
 | `NEXTAUTH_SECRET` |  Yes | NextAuth session signing secret | `openssl rand -base64 32` |
-| `GOOGLE_CLIENT_ID` |  Optional | Google OAuth client ID | From Google Cloud Console |
-| `GOOGLE_CLIENT_SECRET` |  Optional | Google OAuth client secret | From Google Cloud Console |
+| `GOOGLE_CLIENT_ID` |  No (required for OAuth) | Google OAuth client ID | From Google Cloud Console |
+| `GOOGLE_CLIENT_SECRET` |  No (required for OAuth) | Google OAuth client secret | From Google Cloud Console |
 | `NEXT_PUBLIC_API_URL` |  Optional | API URL for client-side calls | Defaults to current domain |
 
 #### 🚀 Deployment Steps:
@@ -320,11 +320,13 @@ OAuth (Google / NextAuth):
 
 - `NEXTAUTH_URL` - Deployed base URL (e.g. `https://<your-domain>`)
 - `NEXTAUTH_SECRET` - Session/JWT signing secret (generate with `openssl rand -base64 32`)
-- `GOOGLE_CLIENT_ID` - Google OAuth client id
-- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
+- `GOOGLE_CLIENT_ID` - Google OAuth client id (required only if Google sign-in is enabled)
+- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret (required only if Google sign-in is enabled)
+
 
 Optional:
 
+- `JWT_SECRET` - JWT signing secret (fallback/alternate secret configuration)
 - `NEXT_PUBLIC_API_URL` - API URL for client-side (defaults to current domain)
 
 ## 🤝 Contributing
