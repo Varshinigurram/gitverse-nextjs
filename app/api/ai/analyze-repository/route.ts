@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isHttpError, requireAuth } from "@/lib/middleware";
+import { isHttpError, requireAuth } from "@/lib/api-auth";
 import { getGeminiService } from "@/lib/services/geminiService";
 import { repositoryService } from "@/lib/services/repositoryService";
 
@@ -31,10 +31,7 @@ export async function POST(request: NextRequest) {
     );
 
     if (!repository) {
-      return NextResponse.json(
-        { error: "Repository not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Not Found" }, { status: 404 });
     }
 
     // Build lightweight context (efficiency improvement)
@@ -94,6 +91,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
+
   } catch (error: any) {
     const duration = Date.now() - startTime;
 
@@ -119,5 +117,14 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     );
+
+  } finally {
+    const duration = Date.now() - startTime;
+
+    console.log({
+      route: "POST /api/ai/analyze-repository",
+      duration_ms: duration,
+      status: "completed"
+    });
   }
 }

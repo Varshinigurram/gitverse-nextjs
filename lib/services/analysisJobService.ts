@@ -1,5 +1,6 @@
 import prisma from "../prisma";
 import type { AnalysisJob } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 export type JobProgressUpdate = {
   progressPercent?: number;
@@ -84,6 +85,7 @@ export class AnalysisJobService {
         lockedAt: null,
         lockedBy: null,
         lockExpiresAt: null,
+        progressDetails: Prisma.DbNull,
       },
     });
   }
@@ -133,6 +135,7 @@ export class AnalysisJobService {
         lockedAt: null,
         lockedBy: null,
         lockExpiresAt: null,
+        progressDetails: Prisma.DbNull,
       },
     });
   }
