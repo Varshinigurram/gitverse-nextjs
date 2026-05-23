@@ -46,13 +46,19 @@ export async function POST(request: NextRequest) {
     if (isRateLimited(ip)) {
       return NextResponse.json(
         { error: "Too many failed login attempts. Please try again later." },
-        { status: 429 }
+        {
+          status: 429,
+          headers: {
+            "Retry-After": "60",
+          },
+        }
       );
     }
 
     const body = await request.json();
     const { email, password } = body;
 
+    // Validation
     if (!email || !password) {
       return NextResponse.json(
         { error: "Email and password are required" },
@@ -60,6 +66,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Find user
     const user = await prisma.user.findUnique({
       where: { email },
     });
@@ -73,10 +80,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Security: prevent password login for Google-only accounts
     if (!user.passwordHash) {
       const hasGoogleAccount =
         (await prisma.account.count({
-          where: { userId: user.id, provider: "google" },
+          where: {
+            userId: user.id,
+            provider: "google",
+          },
         })) > 0;
 
       if (hasGoogleAccount) {
@@ -89,8 +100,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fallback for legacy users during password → passwordHash migration
-    const passwordHash = user.passwordHash || (user as any).password;
+    // Verify password
+    const passwordHash = user.passwordHash;
 
     if (!passwordHash) {
       recordFailedAttempt(ip);
@@ -101,7 +112,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isValidPassword = await bcrypt.compare(password, passwordHash);
+    const isValidPassword = await bcrypt.compare(
+      password,
+      passwordHash
+    );
 
     if (!isValidPassword) {
       recordFailedAttempt(ip);
@@ -112,7 +126,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const token = generateToken({ userId: user.id, email: user.email });
+    // Generate JWT token
+    const token = generateToken({
+      userId: user.id,
+      email: user.email,
+    });
 
     return NextResponse.json({
       user: {
@@ -123,8 +141,10 @@ export async function POST(request: NextRequest) {
       },
       token,
     });
+
   } catch (error) {
     console.error("Login error:", sanitizeError(error));
+
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
