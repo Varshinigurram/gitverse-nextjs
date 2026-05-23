@@ -10,7 +10,11 @@ export async function GET(request: NextRequest) {
     const user = await getAuthUser(request);
 
     if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401,
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    },
+   });
     }
 
     // Fetch user details
@@ -19,7 +23,11 @@ export async function GET(request: NextRequest) {
     });
 
     if (!userDetails) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: "User not found" }, { status: 404,
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    },
+   });
     }
 
     return NextResponse.json({
