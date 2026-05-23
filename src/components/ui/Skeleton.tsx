@@ -31,7 +31,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   }
 
   return (
-    <span
+    <div
       className={`${baseClasses} ${variantClasses} ${animationClass} ${className}`}
       style={style}
       aria-busy="true"
