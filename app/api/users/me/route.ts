@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/middleware";
-import { sanitizeErrorMessage } from "@/lib/utils/rateLimit";
+import { requireAuth , sanitizeError } from "@/lib/middleware";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,7 +26,7 @@ export async function GET(request: NextRequest) {
       })) > 0;
 
     if (!userDetails) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -40,9 +39,9 @@ export async function GET(request: NextRequest) {
       isGoogleLinked: hasGoogleAccount,
     });
   } catch (error: any) {
-    console.error("Error fetching user:", sanitizeErrorMessage(error));
+    console.error("Error fetching user:", sanitizeError(error));
     return NextResponse.json(
-      { message: "Failed to fetch user" },
+      { error: "Failed to fetch user" },
       { status: 500 }
     );
   }
@@ -56,14 +55,22 @@ export async function DELETE(request: NextRequest) {
       where: { id: user.userId },
     });
 
-    return NextResponse.json({ message: "Account deleted" });
+    const response = NextResponse.json({ message: "Account deleted" });
+
+    // Clear active session cookies to invalidate server/client session cookies immediately
+    response.cookies.delete("next-auth.session-token");
+    response.cookies.delete("__Secure-next-auth.session-token");
+    response.cookies.delete("next-auth.callback-url");
+    response.cookies.delete("next-auth.csrf-token");
+
+    return response;
   } catch (error: any) {
-    console.error("Error deleting account:", sanitizeErrorMessage(error));
+    console.error("Error deleting account:", sanitizeError(error));
     if (error?.code === "P2025") {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
     return NextResponse.json(
-      { message: "Failed to delete account" },
+      { error: "Failed to delete account" },
       { status: 500 }
     );
   }

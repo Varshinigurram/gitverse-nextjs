@@ -17,22 +17,48 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  EmptyState,
 } from "@/components/ui";
+
+interface FileData {
+  name: string;
+  path: string;
+  size?: number;
+  extension?: string;
+  language?: string;
+  lines?: number;
+  createdAt?: string;
+}
+
+interface FileChange {
+  path: string;
+  additions?: number;
+  deletions?: number;
+  type?: "added" | "modified" | "deleted";
+}
+
+interface CommitData {
+  fileChanges?: FileChange[];
+}
+
+interface RepositoryData {
+  name?: string;
+  files?: FileData[];
+  commits?: CommitData[];
+}
 
 interface FileNode {
   name: string;
   type: "file" | "folder";
   path: string;
   size?: number;
-  fileData?: any; // Reference to the actual file object from repository
+  fileData?: FileData; // Reference to the actual file object from repository
   children?: FileNode[];
 }
 
 interface FileTreeProps {
   node: FileNode;
   level?: number;
-  onFileSelect?: (fileData: any) => void;
+  onFileSelect?: (fileData: FileData) => void;
 }
 
 const FileTreeNode: React.FC<FileTreeProps> = ({
@@ -130,14 +156,14 @@ const formatBytes = (bytes: number): string => {
 };
 
 interface FileStructureProps {
-  repository?: any;
+  repository?: RepositoryData;
 }
 
 export const FileStructure = ({ repository }: FileStructureProps) => {
-  const [selectedFile, setSelectedFile] = useState<any | null>(null);
+  const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
 
   // Build file tree from repository files
-  const buildFileTree = (files: any[]): FileNode => {
+  const buildFileTree = (files: FileData[]): FileNode => {
     const root: FileNode = {
       name: repository?.name || "root",
       type: "folder",
@@ -145,7 +171,7 @@ export const FileStructure = ({ repository }: FileStructureProps) => {
       children: [],
     };
 
-    files?.forEach((file: any) => {
+    files?.forEach((file: FileData) => {
       const parts = file.path.split("/").filter(Boolean);
       let current = root;
 
@@ -177,16 +203,16 @@ export const FileStructure = ({ repository }: FileStructureProps) => {
 
   const fileTree = buildFileTree(repository?.files || []);
 
-  const handleFileSelect = (fileData: any) => {
+  const handleFileSelect = (fileData: FileData) => {
     setSelectedFile(fileData);
   };
 
   // Count commits for a specific file
   const getFileCommitCount = (filePath: string): number => {
     return (
-      repository?.commits?.reduce((count: number, commit: any) => {
+      repository?.commits?.reduce((count: number, commit: CommitData) => {
         const fileChanged = commit.fileChanges?.some(
-          (fc: any) => fc.path === filePath
+          (fc: FileChange) => fc.path === filePath
         );
         return fileChanged ? count + 1 : count;
       }, 0) || 0
@@ -197,8 +223,8 @@ export const FileStructure = ({ repository }: FileStructureProps) => {
   const getFileChangeStats = (filePath: string) => {
     let additions = 0;
     let deletions = 0;
-    repository?.commits?.forEach((commit: any) => {
-      commit.fileChanges?.forEach((change: any) => {
+    repository?.commits?.forEach((commit: CommitData) => {
+      commit.fileChanges?.forEach((change: FileChange) => {
         if (change.path === filePath) {
           additions += change.additions || 0;
           deletions += change.deletions || 0;
@@ -210,28 +236,20 @@ export const FileStructure = ({ repository }: FileStructureProps) => {
 
   return (
     <div className="space-y-4">
-      {!repository?.files || repository.files.length === 0 ? (
-        <EmptyState
-          icon={Folder}
-          title="No files found"
-          description="We couldn't find any files in this repository."
-        />
-      ) : (
-        <Card className="glass">
-          <CardHeader>
-            <CardTitle className="font-heading">File Structure</CardTitle>
-            <CardDescription>
-              Explore the repository&apos;s file system
-            </CardDescription>
-            <CardDescription>*Click on a file for more info*</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="border border-border/50 rounded-lg p-4 bg-background/50 max-h-[600px] overflow-y-auto">
-              <FileTreeNode node={fileTree} onFileSelect={handleFileSelect} />
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Card className="glass">
+        <CardHeader>
+          <CardTitle className="font-heading">File Structure</CardTitle>
+          <CardDescription>
+            Explore the repository&apos;s file system
+          </CardDescription>
+          <CardDescription>*Click on a file for more info*</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="border border-border/50 rounded-lg p-4 bg-background/50 max-h-[600px] overflow-y-auto">
+            <FileTreeNode node={fileTree} onFileSelect={handleFileSelect} />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* File Analytics Modal */}
       {selectedFile && (

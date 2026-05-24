@@ -4,7 +4,7 @@ This is the Next.js version of GitVerse, migrated from the Vite + React version 
 
 ## Prerequisites
 
-- Node.js 22.x installed (see [Supported Node Version](README.md#supported-node-version))
+- Node.js 18+ installed
 - PostgreSQL database (NeonDB recommended)
 - Google Gemini AI API key
 
@@ -28,13 +28,13 @@ cp .env.example .env.local
 Edit `.env.local` and fill in your values:
 
 ```env
-# Database - Get from [https://neon.tech](https://neon.tech)
+# Database - Get from https://neon.tech
 DATABASE_URL=postgresql://user:password@host/database?sslmode=require&schema=public
 
 # JWT Secret - Generate a secure random string
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 
-# Gemini AI - Get from [https://makersuite.google.com/app/apikey](https://makersuite.google.com/app/apikey)
+# Gemini AI - Get from https://makersuite.google.com/app/apikey
 GEMINI_API_KEY=your_gemini_api_key_here
 
 # NextAuth (required for Google login)
@@ -47,7 +47,7 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 
 # Optional: Base URL for API calls
 # Leave unset to use same-origin `/api/...` (recommended).
-# If you set it, avoid a trailing slash (e.g. [https://example.com](https://example.com), not [https://example.com/](https://example.com/))
+# If you set it, avoid a trailing slash (e.g. https://example.com, not https://example.com/)
 # NEXT_PUBLIC_API_URL=http://localhost:3000
 ```
 
@@ -108,21 +108,11 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Running the App
 
-Note on Background Tasks: For standard local development, background tasks are handled seamlessly by Next.js API routes. The legacy worker script is optional and generally not required.
-
 ```bash
 npm run dev          # Development server
 npm run build        # Production build
 npm start            # Production server
 npm run lint         # Lint code
-```
-
-### Legacy Worker (Optional)
-
-If you are testing specific background workflows locally that mimic a custom non-serverless deployment, you can optionally run the worker:
-
-```bash
-npm run worker       # Run background tasks (Legacy / Optional)
 ```
 
 ### Database Management
@@ -176,15 +166,12 @@ All endpoints are prefixed with `/api`:
 
 ### Vercel (Recommended)
 
-Vercel automatically handles background processes via serverless functions, so the worker script is not needed for this deployment method.
-
 1. Push code to GitHub
 2. Import in Vercel dashboard
 3. Add environment variables
 4. Deploy automatically
 
 ### Docker
-If self-hosting via Docker, run the primary application container. If your deployment uses queue-based background processing, run the legacy worker as a separate process/container.
 
 ```bash
 docker build -t gitverse-nextjs .
@@ -192,15 +179,10 @@ docker run -p 3000:3000 gitverse-nextjs
 ```
 
 ### Manual Deployment
-For deployments on custom servers (e.g., EC2, VPS) where serverless functions aren't available, run the app build. If queue-based background processing is enabled, also run the worker script (for example via PM2/systemd).
 
 ```bash
 npm run build
 npm start
-
-# In a separate terminal or using a process manager like PM2:
-npm run worker
-
 ```
 
 ## Troubleshooting
@@ -248,3 +230,65 @@ For issues or questions:
 ---
 
 **Note**: This is a complete migration of the original Vite project to Next.js. All features and UI remain identical.
+
+
+## Setting Up GitHub App (for PR Reviews)
+
+### Step 1: Create a GitHub App
+
+1. Go to **GitHub → Settings → Developer settings → GitHub Apps**
+2. Click **New GitHub App**
+3. Fill in:
+   - **App name:** `gitverse-your-username` (must be unique)
+   - **Homepage URL:** `https://your-app.vercel.app`
+   - **Webhook URL:** `https://your-app.vercel.app/api/webhooks/github`
+   - **Webhook secret:** Generate any random string — save it as `GITHUB_WEBHOOK_SECRET`
+4. Set **Permissions:**
+   - Pull requests → **Read & Write**
+   - Contents → **Read only**
+   - Issues → **Read & Write**
+5. Click **Create GitHub App**
+
+### Step 2: Get Your Credentials
+
+After creating the app:
+
+- Copy **App ID** → save as `GITHUB_APP_ID`
+- Copy **App slug** (from the URL) → save as `GITHUB_APP_SLUG`
+- Scroll down → click **Generate a private key** → downloads a `.pem` file
+
+### Step 3: Format the Private Key
+
+**For local `.env.local`:**
+```bash
+# Open the .pem file and copy its contents
+# Replace actual newlines with \n — paste as a single line:
+GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----"
+```
+
+**For Vercel:**
+1. Open the `.pem` file in a text editor
+2. Copy the **entire content** (including BEGIN/END lines)
+3. In Vercel Dashboard → Environment Variables → paste as-is (Vercel handles multiline automatically)
+
+### Step 4: Install the App on Your Repo
+
+1. Go to your GitHub App → **Install App**
+2. Select your repository
+3. Click **Install**
+
+---
+
+## Troubleshooting: GitHub App Issues
+
+### Webhook not receiving events
+- Check that `GITHUB_WEBHOOK_SECRET` matches exactly what you set in GitHub App settings
+- Check logs at: **Vercel Dashboard → Functions → Logs**
+
+### "Bad credentials" error
+- `GITHUB_APP_PRIVATE_KEY` format is incorrect — ensure `\n` is a literal backslash-n, not an actual newline
+- `GITHUB_APP_ID` must contain numeric digits only — do not add extra quotes or spaces
+
+### Private key error on Vercel
+- When pasting in Vercel, copy the **entire content** of the `.pem` file
+- The full PEM block must be preserved — header may be `-----BEGIN RSA PRIVATE KEY-----` or `-----BEGIN PRIVATE KEY-----` depending on your key format

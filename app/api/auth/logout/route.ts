@@ -1,73 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/middleware";
+import { getAuthUser, sanitizeError } from "@/lib/middleware";
 
+/**
+ * Handles logout requests by validating the authorization header
+ * and ensuring the user token is valid.
+ */
 export async function POST(request: NextRequest) {
   try {
-    const contentType = request.headers.get("content-type");
+    const authHeader = request.headers.get("authorization");
 
-    if (contentType && !contentType.includes("application/json")) {
+    if (!authHeader) {
       return NextResponse.json(
-        { error: "Content-Type must be application/json"},
+        { error: "Authorization header is required" },
         { status: 400 }
       );
     }
 
-        const user = await getAuthUser(request);
+    const parts = authHeader.split(" ");
+
+    if (
+      parts.length !== 2 ||
+      parts[0] !== "Bearer" ||
+      parts[1].trim() === ""
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Malformed Authorization header, expected 'Bearer <token>'",
+        },
+        { status: 400 }
+      );
+    }
+
+    const user = await getAuthUser(request);
 
     if (!user) {
       return NextResponse.json(
-        { error: "Not authenticated" },
-        { status: 401 });
-    }
-
-const contentLength = request.headers.get("content-length");
-
-if (
-  contentType &&
-  contentType.includes("application/json") &&
-  contentLength !== "0"
-) {
-
-  const MAX_BODY_SIZE = 1024;
-
-if (contentLength && Number(contentLength) > MAX_BODY_SIZE) {
-  return NextResponse.json(
-    { error: "Request body too large" },
-    { status: 413 }
-  );
-}
-
-  const rawBody = await request.text();
-
-  // Only validate JSON when body actually exists
-  if (rawBody.trim().length > 0) {
-    try {
-      JSON.parse(rawBody);
-    } catch {
-      return NextResponse.json(
-        { error: "Invalid JSON payload" },
-        { status: 400 }
+        { error: "Invalid or expired authentication token" },
+        { status: 401 }
       );
     }
-  }
-}
 
-  //Logout response
+    return NextResponse.json({
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    console.error("Logout error:", sanitizeError(error));
 
-  // In a stateless JWT setup, logout is handled client-side by removing the token
-  // We can optionally implement token blacklisting here if needed
-
-  return NextResponse.json(
-    { message: "Logged out successfully" },
-    { status: 200 }
-  );
-
-} catch (error) {
-    console.error("Logout API Error:", error);
-
-    //prevent stack trace from reaching client
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Failed to process logout request" },
       { status: 500 }
     );
   }

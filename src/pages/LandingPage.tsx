@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShortcutHint } from "@/components/ui/ShortcutHint";
 import {
   GitBranch,
   Network,
@@ -30,7 +29,7 @@ export default function LandingPage() {
   const [repoUrl, setRepoUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [scoreAnimate, setScoreAnimate] = useState(false);
-  const searchRef = useRef<HTMLInputElement>(null);
+  const isAnalyzeDisabled = !repoUrl.trim() || isLoading;
 
   const mentorMessages = useMemo(
     () => [
@@ -49,33 +48,6 @@ export default function LandingPage() {
     [],
   );
 
-  useEffect(() => {
-  const handleKeyDown = (e: KeyboardEvent) => {
-    const active = document.activeElement;
-
-    const isTyping =
-      active instanceof HTMLInputElement ||
-      active instanceof HTMLTextAreaElement ||
-      active instanceof HTMLSelectElement ||
-      (active instanceof HTMLElement && active.isContentEditable);
-
-    if (e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && !isTyping) {
-      e.preventDefault();
-      searchRef.current?.focus();
-    }
-
-  if(e.key === "Escape" && (document.activeElement === searchRef.current || !isTyping)) {
-      setRepoUrl("");
-      searchRef.current?.blur();
-    }
-  };
-
-  window.addEventListener("keydown", handleKeyDown);
-
-  return () => {
-    window.removeEventListener("keydown", handleKeyDown);
-  };
-}, []);
   useEffect(() => {
     const media = window.matchMedia?.("(prefers-reduced-motion: reduce)");
     if (media?.matches) {
@@ -156,6 +128,7 @@ export default function LandingPage() {
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!repoUrl.trim() || isLoading) return;
 
     // Demo-only CTA: keep it as UI (no navigation / no analysis).
     setIsLoading(true);
@@ -403,7 +376,6 @@ export default function LandingPage() {
               >
                 <div className="cta-shell__inner flex flex-col sm:flex-row gap-3 p-2 rounded-xl glass">
                   <Input
-                    ref={searchRef}
                     type="url"
                     placeholder="https://github.com/username/repository"
                     value={repoUrl}
@@ -415,8 +387,8 @@ export default function LandingPage() {
                   <Button
                     type="submit"
                     size="lg"
-                    disabled={isLoading}
-                    className="group h-12 px-6 bg-gradient-primary hover:opacity-90 transition-opacity font-semibold transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                    disabled={isAnalyzeDisabled}
+                    className="group h-12 px-6 bg-gradient-primary font-semibold transition-all hover:opacity-90 hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
                   >
                     {isLoading ? (
                       <>
@@ -436,7 +408,6 @@ export default function LandingPage() {
               <p className="text-sm text-muted-foreground mt-3">
                 Demo UI only — real analysis happens after install/sign up.
               </p>
-              <ShortcutHint />
             </form>
 
             {/* Demos */}
@@ -706,7 +677,7 @@ export default function LandingPage() {
             {pricingPlans.map((plan) => (
               <Card
                 key={plan.name}
-                className={`relative glass ${plan.popular ? "border-primary glow-primary" : "glass-hover"}`}
+                className={`relative glass transition-all duration-300 ${plan.popular ? "border-primary glow-primary" : "border-border/50 hover:border-primary hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1"}`}
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-primary rounded-full text-sm font-medium text-primary-foreground">
