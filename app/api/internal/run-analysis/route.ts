@@ -5,6 +5,12 @@ import { repositoryService } from "@/lib/services/repositoryService";
 
 export const runtime = "nodejs";
 
+// Global catch — prevents Node 15+ from crashing the request on an
+// unhandled rejection that made it past the promise-gap fixes above.
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection in run-analysis route:", reason);
+});
+
 const HEARTBEAT_INTERVAL_MS = 30_000;
 
 function isAuthorized(request: NextRequest): boolean {

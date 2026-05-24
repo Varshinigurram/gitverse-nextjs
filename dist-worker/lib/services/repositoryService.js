@@ -193,12 +193,9 @@ class RepositoryService {
                     report({ progressPercent: Math.min(8, analysisPct), progressMessage: msg });
                 },
             });
-            // Capture README / size / branches in parallel; these are independent once cloned.
+            // Capture README first, then size + branches in parallel.
             await report({ progressPercent: 8, progressMessage: "Reading README" });
-            const readmePromise = this.tryReadmeFromRepoPath(tempDir);
-            const sizePromise = gitService.getRepositorySize();
-            const branchesPromise = gitService.getBranches();
-            const readme = await readmePromise;
+            const readme = await this.tryReadmeFromRepoPath(tempDir);
             await prisma_1.default.repository.update({
                 where: { id: repositoryId },
                 data: {
@@ -213,8 +210,8 @@ class RepositoryService {
                 progressMessage: "Calculating size",
             });
             const [size, branches] = await Promise.all([
-                sizePromise,
-                branchesPromise,
+                gitService.getRepositorySize(),
+                gitService.getBranches(),
             ]);
             // Analyze branches
             console.log(`Analyzing branches for repository ${repositoryId}`);
@@ -373,16 +370,13 @@ class RepositoryService {
                 progressPercent: 80,
                 progressMessage: "Analyzing contributors",
             });
-            const contributorsPromise = gitService.getContributors();
-            console.log(`Detecting languages for repository ${repositoryId}`);
             await report({
                 progressPercent: 90,
                 progressMessage: "Detecting languages",
             });
-            const languagesPromise = gitService.detectLanguages();
             const [contributors, languages] = await Promise.all([
-                contributorsPromise,
-                languagesPromise,
+                gitService.getContributors(),
+                gitService.detectLanguages(),
             ]);
             const totalContributions = contributors.reduce((sum, c) => sum + c.commits, 0);
             if (contributors.length > 0) {

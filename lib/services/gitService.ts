@@ -265,9 +265,9 @@ export class GitService {
         { timeout: DEFAULT_GIT_TIMEOUT_MS },
       );
 
-      const branches: BranchData[] = [];
       const lines = stdout.trim().split("\n").filter(Boolean);
       const seenBranches = new Set<string>();
+      const refEntries: { name: string; fullName: string; date: string }[] = [];
 
       for (const line of lines) {
         const [fullName, date] = line.split("|");
@@ -282,21 +282,42 @@ export class GitService {
         if (!name || name === "origin" || seenBranches.has(name)) continue;
         seenBranches.add(name);
 
-        const { stdout: commitCount } = await execPromise(
-          `cd "${this.repoPath}" && git rev-list --count "${fullName}"`,
-          { timeout: DEFAULT_GIT_TIMEOUT_MS },
-        );
-
-        branches.push({
-          name,
-          isDefault: name === defaultBranchName,
-          isProtected: ["main", "master", "develop", "production"].includes(
-            name,
-          ),
-          commitCount: parseInt(commitCount.trim()),
-          lastCommitAt: new Date(date),
-        });
+        refEntries.push({ name, fullName, date });
       }
+
+      // Fire all rev-list --count in parallel so one bad ref doesn't block the rest.
+      const countResults = await Promise.allSettled(
+        refEntries.map((entry) =>
+          execPromise(
+            `cd "${this.repoPath}" && git rev-list --count "${entry.fullName}"`,
+            { timeout: DEFAULT_GIT_TIMEOUT_MS },
+          ).then(({ stdout }) => parseInt(stdout.trim())),
+        ),
+      );
+
+      const branches: BranchData[] = refEntries.map((entry, i) => {
+        const result = countResults[i];
+        const commitCount =
+          result.status === "fulfilled"
+            ? result.value
+            : 0;
+
+        if (result.status === "rejected") {
+          console.warn(
+            `Failed to get commit count for branch '${entry.name}': ${result.reason}`,
+          );
+        }
+
+        return {
+          name: entry.name,
+          isDefault: entry.name === defaultBranchName,
+          isProtected: ["main", "master", "develop", "production"].includes(
+            entry.name,
+          ),
+          commitCount,
+          lastCommitAt: new Date(entry.date),
+        };
+      });
 
       return branches;
     } catch (error: any) {
