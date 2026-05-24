@@ -43,6 +43,13 @@ const path = __importStar(require("path"));
 const os = __importStar(require("os"));
 const crypto = __importStar(require("crypto"));
 const fs = __importStar(require("fs/promises"));
+function yieldIfHighMemory(threshold = 0.7) {
+    const usage = process.memoryUsage();
+    if (usage.heapUsed / usage.heapTotal > threshold) {
+        return new Promise((resolve) => setImmediate(resolve));
+    }
+    return Promise.resolve();
+}
 class RepositoryService {
     async tryReadmeFromRepoPath(repoPath) {
         const candidates = [
@@ -319,6 +326,7 @@ class RepositoryService {
                     failedCount += chunk.length;
                     console.error(`Failed to insert commit chunk starting at ${i}:`, error.message);
                 }
+                await yieldIfHighMemory();
             }
             console.log(`Commit insertion complete: ${insertedCount} inserted, ${failedCount} failed`);
             // Analyze files

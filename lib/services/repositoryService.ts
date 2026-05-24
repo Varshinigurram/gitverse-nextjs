@@ -5,6 +5,14 @@ import * as os from "os";
 import * as crypto from "crypto";
 import * as fs from "fs/promises";
 
+function yieldIfHighMemory(threshold = 0.7): Promise<void> {
+  const usage = process.memoryUsage();
+  if (usage.heapUsed / usage.heapTotal > threshold) {
+    return new Promise((resolve) => setImmediate(resolve));
+  }
+  return Promise.resolve();
+}
+
 export interface AnalyzeRepositoryInput {
   name: string;
   url: string;
@@ -361,6 +369,8 @@ export class RepositoryService {
           failedCount += chunk.length;
           console.error(`Failed to insert commit chunk starting at ${i}:`, error.message);
         }
+
+        await yieldIfHighMemory();
       }
 
 
